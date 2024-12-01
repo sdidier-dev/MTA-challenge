@@ -15,6 +15,8 @@ app = Dash(
     external_stylesheets=[dbc.themes.SOLAR, dbc_css, dmc.styles.DATES],
 )
 
+server = app.server
+
 title_layout = html.Div([
 
     html.Div("New York City MTA Transportation Daily Ridership Data (Beginning 2020)",
