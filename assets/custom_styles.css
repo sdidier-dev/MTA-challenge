@@ -1,0 +1,31 @@
+#_dash-app-content {
+    height: 100vh;
+}
+
+/* Grid: classes to center group-header, headers and cells*/
+.center-aligned-group-header .ag-header-group-cell-label {
+    justify-content: center;
+}
+
+.center-aligned-header .ag-header-cell-label {
+    justify-content: center;
+}
+
+.center-aligned-cell {
+    text-align: center;
+}
+
+/* customized fig rangeslider */
+[class^="rangeslider-handle"] {
+    width: 6px;
+    rx: 3px;
+}
+
+.rangeslider-slidebox {
+    stroke: grey;
+    rx: 1px;
+}
+
+.rangeslider-handle-max {
+    x: -2px;
+}

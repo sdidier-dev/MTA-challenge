@@ -1,0 +1,13 @@
+dash
+pandas
+gunicorn
+dash-bootstrap-components
+dash-ag-grid
+dash-bootstrap-templates
+prefixed
+dash-mantine-components
+dash-iconify
+python-dotenv
+statsmodels
+networkx
+sktime[all_extras]
