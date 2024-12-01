@@ -19,7 +19,7 @@ server = app.server
 
 title_layout = html.Div([
 
-    html.Div("New York City MTA Transportation Daily Ridership Data (Beginning 2020)",
+    html.Div("New York City MTA Transportation Daily Ridership (Beginning 2020-03)",
              className='flex-grow-1 text-center fs-3'),
 
     html.Div([
@@ -38,7 +38,7 @@ title_layout = html.Div([
         ),
         html.A(
             DashIconify(icon="mdi:github", width=34),
-            href="https://github.com/sdidier-dev/figure-friday", target="_blank", className='text-body mx-2'
+            href="https://github.com/sdidier-dev/MTA-challenge", target="_blank", className='text-body mx-2'
         ),
     ], className='d-inline-flex gap-2'),
 ], className='d-flex align-items-center bg-gradient border-bottom border-primary border-2 mx-2', style={'height': 60})
@@ -55,8 +55,24 @@ main_layout = html.Div([
         ], className='flex-fill', style={'min-width': 700, 'min-height': 500}),
 
         dbc.Card([
-            dbc.CardHeader('Ridership Prediction for the Next 30 Days',
-                           className='d-flex justify-content-center fs-5 text-body text-nowrap'),
+            dbc.CardHeader([
+                dmc.Tooltip(
+                    dmc.ActionIcon(
+                        DashIconify(icon='clarity:info-line', width=25),
+                        id="level-info-map-btn",
+                        variant="transparent", color='var(--bs-primary)'),
+                    multiline=True, withArrow=True, arrowSize=6, w=500, position="bottom",
+                    label="Each transportation uses an ARIMA model to make the predictions. "
+                          "The hyperparameters of each model have been fine-tuned with optuna optimization "
+                          "using cross validation with an expanding window and the "
+                          "'mean absolute percentage error' (MAPE) as metric",
+                    classNames={
+                        'tooltip': 'bg-body text-body border border-primary',
+                        'arrow': 'bg-body border-top border-start border-primary'
+                    },
+                ),
+                'Ridership Prediction for the Next 30 Days'
+            ], className='d-flex justify-content-center fs-5 text-body text-nowrap'),
             dbc.CardBody(components.MTA_pred_line, className='p-2'),
         ], className='flex-fill', style={'min-width': 700, 'min-height': 500}),
     ], className='flex-fill w-100 d-flex flex-wrap gap-2'),

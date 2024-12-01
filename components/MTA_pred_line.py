@@ -57,22 +57,44 @@ MTA_pred_line = html.Div([
             value='Subways',
         )], className='d-flex flex-wrap gap-2'
     ),
-    'NOTE: selecting a transportation for the first time can take up to 30s to fit the forecaster and update the graph.',
+    html.Span('NOTE: selecting a transportation for the first time '
+              'can take up to 30s to fit the forecaster and update the graph.',
+              className='fst-italic'),
     html.Div([
         dmc.RadioGroup(
             dmc.Group([
-                dmc.Radio(label='Current Prediction', value='current',
-                          color='var(--bs-primary)', styles={'label': {'padding-left': 5}}),
-                dmc.Radio(label='Backtesting:', value='back',
-                          color='var(--bs-primary)', styles={'label': {'padding-left': 5}}),
+                dmc.Tooltip(
+                    dmc.Radio(label='Current Prediction', value='current',
+                              color='var(--bs-primary)', styles={'label': {'padding-left': 5}}),
+                    multiline=True, withArrow=True, arrowSize=6, w=300, position="top",
+                    label="Uses the full data available to forecast the daily ridership for the next 30 days.",
+                    classNames={
+                        'tooltip': 'bg-body text-body border border-primary',
+                        'arrow': 'bg-body border-bottom border-end border-primary'
+                    },
+                ),
+                dmc.Tooltip(
+                    dmc.Radio(label='Backtesting:', value='back',
+                              color='var(--bs-primary)', styles={'label': {'padding-left': 5}}),
+                    multiline=True, withArrow=True, arrowSize=6, w=500, position="top", bg='var(--bs-body-bg)',
+                    label="Uses the Train data to fit the ARIMA model, makes Predictions for the 30 following days and "
+                          "calculates the 'mean absolute percentage error' (MAPE) metric comparing the Predictions "
+                          "to the Test data = real data unknown by the model, to assess the model performance. "
+                          "The step between folds is 7 days",
+                    classNames={
+                        'tooltip': 'bg-body text-body border border-primary',
+                        'arrow': 'bg-body border-bottom border-end border-primary'
+                    },
+                ),
+
             ]),
             id="MTA-pred-radiogroup",
             value="current"
         ),
-        html.Span(' Fold N -', id='MTA-pred-back-span'),
+        html.Span(' Fold N -', id='MTA-pred-back-span', className='ms-2'),
         dmc.NumberInput(
             id='MTA-pred-back-input',
-            value=0, min=0, max=9,
+            value=9, min=0, max=9,
             size='xs', w=50,
             stepHoldDelay=500, stepHoldInterval=100,
         ),
@@ -96,17 +118,6 @@ MTA_pred_line = html.Div([
 ], className='h-100 flex-fill d-flex flex-column gap-1')
 
 
-@callback(
-    Output('MTA-pred-back-input', 'value'),
-    Input('MTA-pred-graph', 'clickData'),
-    prevent_initial_call=True,
-)
-def update_fold_selection(click_data):
-    if 'customdata' in click_data['points'][0]:
-        return click_data['points'][0]['customdata']
-    return no_update
-
-
 # makes the loader visible when reloading data
 @callback(
     Output("MTA-pred-graph-loading-overlay", "visible", allow_duplicate=True),
@@ -119,7 +130,7 @@ def reactivate_graph_loader(*_):
     return True
 
 
-# used to save the prediction
+# used to save the predictions
 back_test_folds = {}
 actual_pred = {}
 
@@ -142,7 +153,7 @@ def change_pred_graph(selected_transport, pred_type, fold_n, theme, switch_on, c
 
     # set the layout first to get the theme colors
     fig.update_layout(
-        legend={'orientation': 'h', 'y': 1.1},
+        legend={'orientation': 'h', 'y': 1},
         margin={'autoexpand': True, "r": 5, "t": 0, "l": 0, "b": 5},
         template=f"{template_from_url(theme)}{'' if switch_on else '_dark'}",
         hovermode='x unified',
@@ -203,7 +214,7 @@ def change_pred_graph(selected_transport, pred_type, fold_n, theme, switch_on, c
     if selected_transport not in back_test_folds:
         # backtesting
         fold_length = 7
-        fold_number = 3
+        fold_number = 10
         y_pred_folds, MAPE_folds = [], []
         for i in list(range(fold_number - 1, -1, -1)):
             if i + 1 == fold_number:
@@ -263,7 +274,6 @@ def change_pred_graph(selected_transport, pred_type, fold_n, theme, switch_on, c
             xperiod=to_ms['W-SAT'],
             xperiodalignment="middle",
             showlegend=False,
-            textposition="inside",
             texttemplate="%{y:.3f}",
             textfont_color=fig['layout']['template']['layout']['font']['color'],
             customdata=list(range(fold_number - 1, -1, -1)),  # used to select the corresponding fold on bar click
@@ -276,7 +286,7 @@ def change_pred_graph(selected_transport, pred_type, fold_n, theme, switch_on, c
 
         fig.add_scatter(
             name='Train (from 2020-03-01)',
-            x=y[-100:y_split_index_position].index, y=y[-100:y_split_index_position],
+            x=y[-150:y_split_index_position].index, y=y[-150:y_split_index_position],
             line_color=transport_colors[selected_transport],
             yaxis="y2",
             hovertemplate="%{y:.4s}"
@@ -343,3 +353,14 @@ def change_pred_graph(selected_transport, pred_type, fold_n, theme, switch_on, c
 def update_disable_back_input(pred_type):
     return ({'font-size': 14, 'color': 'var(--mantine-color-dimmed)' if pred_type == 'current' else ''},
             pred_type == 'current')
+
+
+@callback(
+    Output('MTA-pred-back-input', 'value'),
+    Input('MTA-pred-graph', 'clickData'),
+    prevent_initial_call=True,
+)
+def update_fold_selection(click_data):
+    if 'customdata' in click_data['points'][0]:
+        return click_data['points'][0]['customdata']
+    return no_update
