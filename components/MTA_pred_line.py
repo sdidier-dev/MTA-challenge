@@ -1,9 +1,11 @@
 import numpy as np
+import pandas as pd
 from dash import html, Input, Output, dcc, callback, State, Patch, no_update
 from dash_bootstrap_templates import ThemeChangerAIO, template_from_url
 from datetime import timedelta
 import dash_mantine_components as dmc
 import plotly.graph_objects as go
+import os.path
 
 from config import df, transports, to_ms
 
@@ -130,11 +132,6 @@ def reactivate_graph_loader(*_):
     return True
 
 
-# used to save the predictions
-back_test_folds = {}
-actual_pred = {}
-
-
 # Note: can't use a Patch() while modifying the theme, the fig must be fully regenerated
 # here we also update the transportation chips to match the fig colorway
 @callback(
@@ -148,7 +145,7 @@ actual_pred = {}
     Input("color-mode-switch", "checked"),
     State('MTA-pred-chipgroup', 'children'),
 )
-def change_pred_graph(selected_transport, pred_type, fold_n, theme, switch_on, chips):
+def change_pred_graph(selected_transport, pred_type, selected_fold, theme, switch_on, chips):
     fig = go.Figure()
 
     # set the layout first to get the theme colors
@@ -210,12 +207,30 @@ def change_pred_graph(selected_transport, pred_type, fold_n, theme, switch_on, c
         ]
     )
 
-    # fit forecaster and make pred if not already done for selected_transport
-    if selected_transport not in back_test_folds:
-        # backtesting
+    # try to load existing backtesting and actual pred, else run the predictions and save the results in csv
+    # to not re-run it next app launch as resource consuming
+
+    # backtesting
+    run_backtest = True
+    if os.path.isfile(f'assets/pred/folds_{selected_transport}.csv'):
+        df_folds_pred = pd.read_csv(f'assets/pred/folds_{selected_transport}.csv', index_col='Date', parse_dates=True)
+        run_backtest = False
+    else:
+        df_folds_pred = pd.DataFrame()
+
+    if os.path.isfile('assets/pred/folds_MAPE.csv'):
+        df_folds_MAPE = pd.read_csv('assets/pred/folds_MAPE.csv', index_col='Folds')
+        if selected_transport in df_folds_MAPE.columns:
+            run_backtest = False
+    else:
+        df_folds_MAPE = pd.DataFrame()
+
+    if run_backtest:
         fold_length = 7
         fold_number = 10
-        y_pred_folds, MAPE_folds = [], []
+
+        MAPE_folds = {}
+
         for i in list(range(fold_number - 1, -1, -1)):
             if i + 1 == fold_number:
                 y_train = y[: - i * fold_length - pred_window]
@@ -224,22 +239,43 @@ def change_pred_graph(selected_transport, pred_type, fold_n, theme, switch_on, c
                 new_y_train = y[- (i + 1) * fold_length - pred_window: - i * fold_length - pred_window]
                 pipe.update(new_y_train)
 
-            y_pred_fold = pipe.predict(fh=np.arange(1, pred_window + 1))
+            # make the predictions and calculate the MAPE
+            y_fold_pred = pipe.predict(fh=np.arange(1, pred_window + 1))
             y_test_fold = y[- i * fold_length - pred_window:- i * fold_length] if i != 0 else y[- pred_window:]
-            MAPE_fold = mean_absolute_percentage_error(y_pred_fold, y_test_fold)
-            # save the pred and MAPE score
-            y_pred_folds.append(y_pred_fold)
-            MAPE_folds.append(MAPE_fold)
+            MAPE_fold = mean_absolute_percentage_error(y_fold_pred, y_test_fold)
+
+            # add the fold predictions in the df and MAPE in dict to add the MAPE of all folds below
+            y_fold_pred.name = f"fold_{i}"
+            df_folds_pred = pd.concat([df_folds_pred, y_fold_pred], axis="columns")
+            MAPE_folds[f"fold_{i}"] = MAPE_fold
+
             print(MAPE_folds)
 
-        back_test_folds[selected_transport] = {'y_pred': y_pred_folds, 'MAPE': MAPE_folds}
+        # add the MAPEs in the df
+        df_folds_MAPE[selected_transport] = MAPE_folds
 
-        # actual prediction
-        new_y_train = y[- pred_window:]
-        pipe.update(new_y_train)
+        # save predictions and MAPE in csv
+        df_folds_pred.to_csv(f'assets/pred/folds_{selected_transport}.csv', index_label='Date')
+        df_folds_MAPE.to_csv('assets/pred/folds_MAPE.csv', index_label='Folds')
+
+    # Actual predictions
+    run_actual_pred = True
+    if os.path.isfile('assets/pred/actual_pred.csv'):
+        df_actual_pred = pd.read_csv('assets/pred/actual_pred.csv', index_col='Date', parse_dates=True)
+        if selected_transport in df_actual_pred.columns:
+            run_actual_pred = False
+    else:
+        df_actual_pred = pd.DataFrame()
+
+    if run_actual_pred:
+        pipe.fit(y)
         y_pred = pipe.predict(fh=np.arange(1, pred_window + 1))
-        actual_pred[selected_transport] = y_pred
+        # save in csv
+        y_pred.name = selected_transport
+        df_actual_pred[selected_transport] = y_pred
+        df_actual_pred.to_csv('assets/pred/actual_pred.csv', index_label='Date')
 
+    # make fig
     if pred_type == 'current':
         # Current Ridership
         fig.add_scatter(
@@ -251,25 +287,27 @@ def change_pred_graph(selected_transport, pred_type, fold_n, theme, switch_on, c
         # Ridership prediction
         fig.add_scatter(
             name='Next 30 Days Predictions',
-            x=actual_pred[selected_transport].index, y=actual_pred[selected_transport],
+            x=df_actual_pred.index, y=df_actual_pred[selected_transport],
             line={'color': transport_colors[selected_transport], 'dash': "dash"},
             hovertemplate="%{y:.4s}"
         )
     else:
         # bar plot for MAPE Score
+        fold_number = len(df_folds_pred.columns)
         MAPE_x = []
-        fold_number = len(back_test_folds[selected_transport]['y_pred'])
-        for fold in range(fold_number):
-            folds_end_dates = back_test_folds[selected_transport]['y_pred'][fold].index[-1]
-            MAPE_x.append(folds_end_dates - timedelta(days=7))
+
+        for fold in range(fold_number - 1, -1, -1):
+            folds_end_dates = df_folds_pred[f"fold_{fold}"].dropna().index[-1]
+            MAPE_x.append(folds_end_dates)
+            # MAPE_x.append(folds_end_dates - timedelta(days=7))
 
         fig.add_bar(
             name="MAPE Score",
             x=MAPE_x,
-            y=back_test_folds[selected_transport]['MAPE'],
+            y=df_folds_MAPE[selected_transport],
             marker=dict(
                 color=transport_colors[selected_transport],
-                opacity=[1 if fold == fold_n else 0.5 for fold in range(fold_number - 1, -1, -1)]
+                opacity=[1 if fold == selected_fold else 0.5 for fold in range(fold_number - 1, -1, -1)]
             ),
             xperiod=to_ms['W-SAT'],
             xperiodalignment="middle",
@@ -281,8 +319,8 @@ def change_pred_graph(selected_transport, pred_type, fold_n, theme, switch_on, c
         )
 
         # Folds line plots
-        y_pred_fold = back_test_folds[selected_transport]['y_pred'][- fold_n - 1]
-        y_split_index_position = y.index.get_indexer([y_pred_fold.index[0]])[0]
+        y_fold_pred = df_folds_pred[f"fold_{selected_fold}"].dropna()
+        y_split_index_position = y.index.get_indexer([y_fold_pred.index[0]])[0]
 
         fig.add_scatter(
             name='Train (from 2020-03-01)',
@@ -293,7 +331,7 @@ def change_pred_graph(selected_transport, pred_type, fold_n, theme, switch_on, c
         )
         fig.add_scatter(
             name='Test',
-            x=y_pred_fold.index, y=y[y_split_index_position:],
+            x=y_fold_pred.index, y=y[y_split_index_position:],
             opacity=0.5,
             line_color=transport_colors[selected_transport],
             yaxis="y2",
@@ -301,7 +339,7 @@ def change_pred_graph(selected_transport, pred_type, fold_n, theme, switch_on, c
         )
         fig.add_scatter(
             name='Prediction',
-            x=y_pred_fold.index, y=y_pred_fold,
+            x=y_fold_pred.index, y=y_fold_pred,
             line={'color': transport_colors[selected_transport], 'dash': "dash"},
             yaxis="y2",
             hovertemplate="%{y:.4s}"
