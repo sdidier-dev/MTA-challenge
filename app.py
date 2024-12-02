@@ -38,7 +38,7 @@ title_layout = html.Div([
         ),
         html.A(
             DashIconify(icon="mdi:github", width=34),
-            href="https://github.com/sdidier-dev/MTA-challenge", target="_blank", className='text-body mx-2'
+            href="https://github.com/sdidier-dev/mta-challenge", target="_blank", className='text-body mx-2'
         ),
     ], className='d-inline-flex gap-2'),
 ], className='d-flex align-items-center bg-gradient border-bottom border-primary border-2 mx-2', style={'height': 60})
