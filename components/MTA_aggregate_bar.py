@@ -142,7 +142,7 @@ MTA_aggregate_bar = html.Div([
             ], className='d-flex align-items-center gap-3 py-2')
         ], className='w-100', style={'min-width': 1000})
     ], id='MTA-aggregate-controls-drawer',
-        className='d-flex align-items-center border-bottom border-secondary mx-2 overflow-y-hidden w-100',
+        className='d-flex align-items-center border-bottom border-secondary px-2 overflow-y-hidden w-100',
         style={'transition': 'height 1s', 'height': 350}
     ),
 

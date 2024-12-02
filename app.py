@@ -83,7 +83,7 @@ app.layout = dmc.MantineProvider(
     html.Div([
         title_layout,
         main_layout
-    ], className='h-100 d-flex flex-column')
+    ], className='vh-100 d-flex flex-column border')
 )
 
 # Switch color-theme for DBC and DMC components
