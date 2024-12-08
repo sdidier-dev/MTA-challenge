@@ -5,7 +5,7 @@ dash-bootstrap-components
 dash-ag-grid
 dash-bootstrap-templates
 prefixed
-dash-mantine-components
+dash-mantine-components==0.15.1
 dash-iconify
 python-dotenv
 statsmodels
