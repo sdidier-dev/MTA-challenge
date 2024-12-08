@@ -1,11 +1,14 @@
+from datetime import timedelta, datetime, date
+
 from dash import Dash, html, Input, Output, clientside_callback, _dash_renderer
+from dash_bootstrap_templates import ThemeChangerAIO
 import dash_bootstrap_components as dbc
 import dash_mantine_components as dmc
 from dash_iconify import DashIconify
 
 import components as components
 
-from dash_bootstrap_templates import ThemeChangerAIO
+from config import df, transports, to_ms
 
 _dash_renderer._set_react_version("18.2.0")
 
@@ -17,10 +20,15 @@ app = Dash(
 
 server = app.server
 
+date_start = datetime.strftime(df.index[0], "%m/%d/%Y")
+date_end = datetime.strftime(df.index[-1], "%m/%d/%Y")
+
 title_layout = html.Div([
 
-    html.Div("New York City MTA Transportation Daily Ridership (Beginning 2020-03)",
-             className='flex-grow-1 text-center fs-3'),
+    html.Div([
+        "MTA Transportation - New York City Ridership",
+        html.Span(f"From {date_start} To {date_end}", style={'font-size': 16})
+    ], className='flex-fill d-flex flex-column align-items-center', style={'font-size': 26, 'line-height': 25}),
 
     html.Div([
         dmc.Switch(
@@ -41,7 +49,7 @@ title_layout = html.Div([
             href="https://github.com/sdidier-dev/mta-challenge", target="_blank", className='text-body mx-2'
         ),
     ], className='d-inline-flex gap-2'),
-], className='d-flex align-items-center bg-gradient border-bottom border-primary border-2 mx-2', style={'height': 60})
+], className='d-flex align-items-center bg-gradient border-bottom border-primary border-2 mx-2', style={'height': 65})
 
 main_layout = html.Div([
 
@@ -63,9 +71,9 @@ main_layout = html.Div([
                         variant="transparent", color='var(--bs-primary)'),
                     multiline=True, withArrow=True, arrowSize=6, w=500, position="bottom",
                     label="Each transportation uses an ARIMA model to make the predictions. "
-                          "The hyperparameters of each model have been fine-tuned with optuna optimization "
-                          "using cross validation with an expanding window and the "
-                          "'mean absolute percentage error' (MAPE) as metric",
+                          "The hyperparameters of each model have been fine-tuned with Optuna optimization "
+                          "using Cross Validation with an expanding window and the "
+                          "Mean Absolute Percentage Error (MAPE) as metric.",
                     classNames={
                         'tooltip': 'bg-body text-body border border-primary',
                         'arrow': 'bg-body border-top border-start border-primary'
@@ -100,5 +108,4 @@ clientside_callback(
 )
 
 if __name__ == '__main__':
-    # app.run(debug=False, dev_tools_ui=False)
-    app.run(debug=True, dev_tools_hot_reload=False)
+    app.run(debug=True)

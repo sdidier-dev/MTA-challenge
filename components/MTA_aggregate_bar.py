@@ -1,4 +1,4 @@
-from dash import html, Input, Output, dcc, callback, State, Patch, no_update, ctx
+from dash import html, Input, Output, dcc, callback, State, Patch, no_update, ctx, ALL
 from dash_bootstrap_templates import ThemeChangerAIO, template_from_url
 from datetime import timedelta, datetime, date
 import dash_mantine_components as dmc
@@ -118,11 +118,11 @@ MTA_aggregate_bar = html.Div([
                     description=dmc.RadioGroup(
                         dmc.Group([
                             html.Label("Graph type:"),
-                            dmc.Radio(label='Underlay', value='underlay',
+                            dmc.Radio(id='MTA-aggregate-pre-radio1', label='Underlay', value='underlay',
                                       color='var(--bs-primary)', size="xs", styles={'label': {'padding-left': 5}}),
-                            dmc.Radio(label='Difference', value='diff',
+                            dmc.Radio(id='MTA-aggregate-pre-radio2', label='Difference', value='diff',
                                       color='var(--bs-primary)', size="xs", styles={'label': {'padding-left': 5}}),
-                            dmc.Radio(label='Percentage', value='percent',
+                            dmc.Radio(id='MTA-aggregate-pre-radio3', label='Percentage', value='percent',
                                       color='var(--bs-primary)', size="xs", styles={'label': {'padding-left': 5}})
                         ], justify='space-between', gap=0),
                         id="MTA-aggregate-pre-radiogroup",
@@ -526,6 +526,17 @@ def update_theme_aggregate_bar(
     )
     # Note: False is to hide the loader when the fig is ready
     return patched_chips, fig, False
+
+
+@callback(
+    Output('MTA-aggregate-pre-radio1', "disabled"),
+    Output('MTA-aggregate-pre-radio2', "disabled"),
+    Output('MTA-aggregate-pre-radio3', "disabled"),
+    Input('MTA-aggregate-pre-chk', 'checked'),
+    prevent_initial_call=True,
+)
+def update_disabled_pre_radios(pre_show):
+    return [not pre_show] * 3
 
 
 @callback(

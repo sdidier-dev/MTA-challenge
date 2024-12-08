@@ -1,11 +1,10 @@
+import os.path
 import numpy as np
 import pandas as pd
 from dash import html, Input, Output, dcc, callback, State, Patch, no_update
 from dash_bootstrap_templates import ThemeChangerAIO, template_from_url
-from datetime import timedelta
 import dash_mantine_components as dmc
 import plotly.graph_objects as go
-import os.path
 
 from config import df, transports, to_ms
 
@@ -79,10 +78,11 @@ MTA_pred_line = html.Div([
                     dmc.Radio(label='Backtesting:', value='back',
                               color='var(--bs-primary)', styles={'label': {'padding-left': 5}}),
                     multiline=True, withArrow=True, arrowSize=6, w=500, position="top", bg='var(--bs-body-bg)',
-                    label="Uses the Train data to fit the ARIMA model, makes Predictions for the 30 following days and "
-                          "calculates the 'mean absolute percentage error' (MAPE) metric comparing the Predictions "
-                          "to the Test data = real data unknown by the model, to assess the model performance. "
-                          "The step between folds is 7 days",
+                    label="Splits the dataset in Train and Test sets. The Train set is used to fit an ARIMA model, "
+                          "then the model is used to make predictions for the 30 following days. Those predictions are "
+                          "compared to the Test set, unknown by the model, using the Mean Absolute Percentage Error "
+                          "(MAPE) metric to assess the model performance. We can evaluate the model using different "
+                          "splits, called Folds. Here we are using 10 Folds with a Step of 7 days",
                     classNames={
                         'tooltip': 'bg-body text-body border border-primary',
                         'arrow': 'bg-body border-bottom border-end border-primary'

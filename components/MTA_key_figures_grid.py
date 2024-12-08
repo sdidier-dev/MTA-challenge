@@ -1,5 +1,5 @@
 from datetime import timedelta, date, datetime
-from dash import html, Input, Output, callback
+from dash import html, Input, Output, callback, Patch
 import dash_ag_grid as dag
 import pandas as pd
 import dash_mantine_components as dmc
@@ -9,8 +9,8 @@ from config import df, transports
 
 cell_style_compare = {
     "styleConditions": [
-        {"condition": "params.value < 0", "style": {"color": "var(--bs-warning)"}},
-        {"condition": "params.value >= 0", "style": {"color": "var(--bs-success)"}},
+        {"condition": "params.value < 0", "style": {"color": "var(--bs-warning)", 'font-size': 16}},
+        {"condition": "params.value >= 0", "style": {"color": "var(--bs-success)", 'font-size': 16}},
     ],
 }
 
@@ -58,14 +58,14 @@ columnDefs = [
             {
                 'field': 'previous', 'headerName': 'Previous Period',
                 "valueFormatter": {"function": "d3.format('+.0%')(params.value)"},
-                "headerClass": 'center-aligned-header', "cellClass": 'center-aligned-cell',
-                'cellStyle': cell_style_compare, "width": 130,
+                "headerClass": 'center-aligned-header center-aligned-cell', "cellClass": 'center-aligned-cell',
+                'cellStyle': cell_style_compare, "width": 140,
             },
             {
                 'field': 'pre', 'headerName': 'Pre-Pandemic',
                 "valueFormatter": {"function": "d3.format('+.0%')(params.value)"},
                 "headerClass": 'center-aligned-header', "cellClass": 'center-aligned-cell',
-                'cellStyle': cell_style_compare, "width": 130,
+                'cellStyle': cell_style_compare, "width": 140,
             },
         ]
     }
@@ -107,7 +107,7 @@ MTA_key_figures_grid = html.Div([
             defaultColDef=defaultColDef,
             dashGridOptions=dashGridOptions,
             style={
-                "height": None, 'width': 722,
+                "height": None, 'width': 742,
                 'box-shadow': '0 0 10px var(--bs-primary)',
                 'border-color': 'var(--bs-primary)'
             }
@@ -127,6 +127,7 @@ MTA_key_figures_grid = html.Div([
 @callback(
     Output('MTA-key-figures-grid', 'rowData'),
     Output('MTA-key-figures-span', 'children'),
+    Output('MTA-key-figures-grid', 'columnDefs'),
     Input('MTA-key-figures-input', 'value'),
 )
 def change_date_picker_type(period):
@@ -146,6 +147,7 @@ def change_date_picker_type(period):
         start=date(df.index[-1].year, df.index[-1].month, 1) - relativedelta(months=2 * period),
         end=date(df.index[-1].year, df.index[-1].month, 1) - relativedelta(months=period) - timedelta(days=1)
     )
+
     dff_previous = df[transports][df.index.isin(date_range_previous)]
     monthly_mean_previous = dff_previous.resample('MS').sum().mean()
 
@@ -157,6 +159,13 @@ def change_date_picker_type(period):
         'pre': monthly_mean[transports] / monthly_mean[[t + '_pre' for t in transports]].set_axis(transports) - 1
     }).reset_index(names='transportation')
 
-    start_str = datetime.strftime(date_range[0], "%m/%d/%Y")
-    end_str = datetime.strftime(date_range[-1], "%m/%d/%Y")
-    return dataset.to_dict("records"), f'({start_str} - {end_str})'
+    # date ranges text
+    date_start = datetime.strftime(date_range[0], "%b '%y")
+    date_end = datetime.strftime(date_range[-1], "%b '%y")
+
+    columnDefs_patch = Patch()
+    date_start_previous = datetime.strftime(date_range_previous[0], "%b '%y")
+    date_end_previous = datetime.strftime(date_range_previous[-1], "%b '%y")
+    columnDefs_patch[2]['children'][0]['headerName'] = f'Previous Period\n{date_start_previous} - {date_end_previous}'
+
+    return dataset.to_dict("records"), f'({date_start} - {date_end})', columnDefs_patch
